@@ -82,7 +82,7 @@ assert.strictEqual(provider.unavailableReason("hey"), "")
 
 // The glyphs ActionIcon actually draws. A mailbox naming anything else renders
 // as nothing at all.
-const DRAWN = ["inbox", "unread", "star", "send", "archive", "trash", "reply", "pin", "label", "compose"]
+const DRAWN = ["inbox", "unread", "star", "sent", "archive", "trash", "reply", "pin", "label", "compose"]
 
 // Every provider's first mailbox is its inbox: `mailboxFor` falls back to it,
 // which is what a key belonging to another provider lands on mid-switch.
@@ -205,6 +205,12 @@ assert.strictEqual(provider.labelQuery("gmail", "Receipts"), "label:Receipts")
 assert.strictEqual(provider.labelQuery("imap", "Receipts"), "folder:\"Receipts\"")
 assert.strictEqual(provider.labelQuery("imap", "Old Mail"), "folder:\"Old Mail\"",
   "a folder name with a space has to arrive quoted")
+assert.strictEqual(provider.query("imap", "Project Alpha", "", ""),
+  "folder:\"Project Alpha\"", "a dynamic IMAP mailbox key selects that exact folder")
+assert.strictEqual(provider.query("imap", "Sent", "", ""), "folder:\"Sent\"",
+  "an exact server folder may differ from the built-in sent key only by case")
+assert.strictEqual(provider.query("imap", "sent", "", ""), "folder:\\Sent",
+  "the lowercase built-in key still resolves through SPECIAL-USE")
 // HEY addresses a label by the id `hey labels` gave, which is what the sidebar
 // carries as a label's `rawName` — `hey label` takes nothing else.
 assert.strictEqual(provider.labelQuery("hey", "4711"), "label:4711")

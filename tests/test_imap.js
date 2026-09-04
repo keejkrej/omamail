@@ -26,6 +26,19 @@ assert.strictEqual(guess.imapPort, 993)
 assert.strictEqual(guess.username, "jane@example.org")
 assert.strictEqual(guess.insecure, false)
 
+assert.strictEqual(guess.guideUrl, "", "nothing to read for a server nobody documented")
+
+// Google refuses the account password over IMAP, which a Gmail user finds out
+// only after typing it. The note has to say so before that, name the app
+// password, and point at the page that explains how to make one — and offer
+// the way out, which is the Gmail provider.
+const gmail = imap.suggestedSettings("jane@gmail.com")
+assert.ok(/app password/i.test(gmail.note), "Gmail names the app password")
+assert.ok(/2-Step Verification/.test(gmail.note), "and the setting it depends on")
+assert.ok(/pick Gmail/.test(gmail.note), "and the provider that needs neither")
+assert.ok(/^https:\/\/support\.google\.com\//.test(gmail.guideUrl), "the guide is Google's own")
+assert.ok(/app password/i.test(gmail.guideLabel), "and the link says what it opens")
+
 const icloud = imap.suggestedSettings("jane@icloud.com")
 assert.strictEqual(icloud.imapHost, "imap.mail.me.com")
 assert.strictEqual(icloud.smtpPort, 587)
@@ -214,8 +227,8 @@ deepEqual(imap.groupByFolder(["3:INBOX", "5:Archive", "4:INBOX"]), [
   { folder: "INBOX", uids: [3, 4] },
   { folder: "Archive", uids: [5] }
 ])
-deepEqual(imap.groupByFolder(["bad", "3:INBOX"]), [{ folder: "INBOX", uids: [3] }],
-  "an unparseable id is dropped rather than aimed at some default folder")
+deepEqual(imap.groupByFolder(["bad", "3:INBOX"]), [],
+  "one unparseable id refuses the whole action rather than partially applying it")
 deepEqual(imap.groupByFolder([
   "8:INBOX", "7:INBOX", "6:INBOX", "2:Archive"
 ], 2), [
@@ -466,6 +479,8 @@ const plainSpecial = imap.specialFolders(plainList)
 assert.strictEqual(plainSpecial["\\sent"], "Sent")
 assert.strictEqual(plainSpecial["\\junk"], "Junk")
 assert.strictEqual(plainSpecial["\\archive"], "Archive")
+assert.strictEqual(imap.isSpecialFolder(plainList[1], plainSpecial), true,
+  "an exact name fallback remains a system folder when SPECIAL-USE is absent")
 
 // Flags win over names: a server that says so is not second-guessed.
 const conflicting = imap.parseList(
@@ -497,6 +512,20 @@ assert.strictEqual(imap.specialFolders(conflicting)["\\sent"], "Verzonden",
   assert.strictEqual(imap.isSpecialFolder({ name: "inbox" }, {}), true,
     "INBOX is case-insensitive, which the RFC declares outright")
   assert.strictEqual(imap.isSpecialFolder(null, {}), false)
+}
+
+// INBOX alone is case-insensitive. Other mailbox names remain exact even when
+// one is a case-collision with the folder a SPECIAL-USE attribute identified.
+{
+  const listed = imap.parseList(
+    "* LIST (\\Sent) \"/\" \"SENT\"\r\n" +
+    "* LIST () \"/\" \"Sent\"\r\n")
+  const map = imap.specialFolders(listed)
+
+  assert.strictEqual(imap.isSpecialFolder(listed[0], map), true,
+    "the folder carrying \\Sent is a system folder")
+  assert.strictEqual(imap.isSpecialFolder(listed[1], map), false,
+    "an ordinary case-colliding folder remains user selectable")
 }
 
 // ------------------------------------------------------------ flags ↔ labels

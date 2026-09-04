@@ -47,9 +47,16 @@ var PRESETS = [
     smtpHost: "smtp.gmail.com", smtpPort: 465,
     // Google turned off password sign-in for IMAP. An app password works only
     // with 2-Step Verification on, and that is the sentence users need to see
-    // before they go looking for a setting that is not there.
-    note: "Needs an app password, which Google only offers with 2-Step Verification on. "
-      + "The Gmail provider signs in with Google directly and does not need one."
+    // before they go looking for a setting that is not there — with the page
+    // that walks them through it, because "app password" is not a term anyone
+    // can act on from memory.
+    note: "Google no longer accepts your account password here. Create an app password "
+      + "(Google offers one only with 2-Step Verification on) and paste it below — "
+      + "or go back and pick Gmail to sign in with Google and skip all of this.",
+    guide: {
+      url: "https://support.google.com/accounts/answer/185833",
+      label: "How to create a Google app password"
+    }
   },
   {
     id: "icloud",
@@ -57,7 +64,11 @@ var PRESETS = [
     domains: ["icloud.com", "me.com", "mac.com"],
     imapHost: "imap.mail.me.com", imapPort: 993,
     smtpHost: "smtp.mail.me.com", smtpPort: 587,
-    note: "Needs an app-specific password from appleid.apple.com."
+    note: "Needs an app-specific password from appleid.apple.com.",
+    guide: {
+      url: "https://support.apple.com/102654",
+      label: "How to create an Apple app-specific password"
+    }
   },
   {
     id: "fastmail",
@@ -147,7 +158,11 @@ function suggestedSettings(address) {
       username: trimmed(address),
       insecure: preset.insecure === true,
       preset: preset.id,
-      note: String(preset.note || "")
+      note: String(preset.note || ""),
+      // Where the note's instruction is spelled out, for the providers whose
+      // password is not the one the user knows. Empty for the rest.
+      guideUrl: preset.guide ? String(preset.guide.url || "") : "",
+      guideLabel: preset.guide ? String(preset.guide.label || "") : ""
     }
   }
   return {
@@ -158,7 +173,9 @@ function suggestedSettings(address) {
     username: trimmed(address),
     insecure: false,
     preset: "",
-    note: ""
+    note: "",
+    guideUrl: "",
+    guideLabel: ""
   }
 }
 
@@ -346,8 +363,9 @@ function resolveFolder(name, folders) {
 
 function messageId(uid, folder) {
   var number = Math.floor(Number(uid))
-  if (!isFinite(number) || number < 1) return ""
-  return String(number) + ":" + trimmed(folder)
+  var mailbox = trimmed(folder)
+  if (!isFinite(number) || number < 1 || mailbox === "") return ""
+  return String(number) + ":" + mailbox
 }
 
 function parseMessageId(id) {
@@ -356,11 +374,22 @@ function parseMessageId(id) {
   return { uid: Math.floor(Number(match[1])), folder: match[2] }
 }
 
+function validMessageIds(ids) {
+  var list = Array.isArray(ids) ? ids : []
+  if (list.length === 0) return false
+  for (var i = 0; i < list.length; i++) {
+    var parsed = parseMessageId(list[i])
+    if (parsed.uid < 1 || trimmed(parsed.folder) === "") return false
+  }
+  return true
+}
+
 // Grouped by folder, because every command this client sends operates on the
 // folder the connection has selected: one round trip per folder rather than
 // one per message, and a batch spanning two folders is two conversations.
 function groupByFolder(ids, maxPerGroup) {
   var list = Array.isArray(ids) ? ids : []
+  if (list.length > 0 && !validMessageIds(list)) return []
   var order = []
   var groups = {}
   for (var i = 0; i < list.length; i++) {
@@ -873,7 +902,7 @@ var SPECIAL_USE = ["\\sent", "\\drafts", "\\trash", "\\junk", "\\archive", "\\al
 // "system" hides the whole folder tree.
 function isSpecialFolder(folder, special) {
   var entry = folder || {}
-  var name = trimmed(entry.name)
+  var name = entry.name === undefined || entry.name === null ? "" : String(entry.name)
   if (name.toLowerCase() === "inbox") return true
 
   var flags = Array.isArray(entry.flags) ? entry.flags : []
@@ -883,9 +912,10 @@ function isSpecialFolder(folder, special) {
 
   // A server with no SPECIAL-USE at all still had its folders matched by name
   // in `specialFolders`, and those are the same ones the mailbox row shows.
+  // INBOX is the only case-insensitive mailbox name; every other name is exact.
   var map = special || {}
   for (var key in map) {
-    if (map[key] && map[key].toLowerCase() === name.toLowerCase()) return true
+    if (map[key] && String(map[key]) === name) return true
   }
   return false
 }

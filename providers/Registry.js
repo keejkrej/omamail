@@ -216,6 +216,9 @@ function query(id, mailboxKey, searchText, defaultQuery) {
   if (provider.id !== "gmail" && custom === "in:inbox") custom = ""
   if (custom !== "" && String(mailboxKey) === "inbox") return custom
 
+  if (provider.id === "imap" && !hasMailbox(id, mailboxKey))
+    return provider.labelQuery(mailboxKey)
+
   return mailboxFor(id, mailboxKey).query
 }
 

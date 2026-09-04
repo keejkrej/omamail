@@ -41,8 +41,8 @@ QML_FILES := Service.qml BarWidget.qml App.qml \
 	components/AccountSwitcher.qml \
 	components/AccountRemovalDialog.qml \
 	components/BackBar.qml \
-	components/UserBar.qml \
 	components/SettingsPage.qml \
+	components/SettingsSidebar.qml \
 	components/CalendarSettings.qml \
 	components/CalendarEventComposer.qml \
 	components/CalendarEventDetail.qml \
@@ -83,6 +83,8 @@ test-js:
 	node tests/test_direction.js
 	node tests/test_cache.js
 	node tests/test_model.js
+	node tests/test_icons.js
+	node tests/test_navigation.js
 	node tests/test_keymap.js
 	node tests/test_accounts.js
 	node tests/test_aliases.js
@@ -90,6 +92,7 @@ test-js:
 	node tests/test_provider.js
 	node tests/test_imap.js
 	node tests/test_hey.js
+	node tests/test_cli.js
 
 test-shell:
 	python3 tests/test_contacts.py
@@ -108,6 +111,7 @@ test-shell:
 	bash tests/test_calendar_write.sh
 	bash tests/test_calendar_delete.sh
 	bash tests/test_release_notes.sh
+	bash tests/test_cli.sh
 
 # Focus ownership and key routing cannot be tested without a focus scope, and a
 # focus scope needs the QML engine. Offscreen, so it needs no compositor: the
